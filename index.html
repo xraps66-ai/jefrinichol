@@ -1,181 +1,127 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Cyber Frame ULTRA</title>
+function drawFrame(h1, h2){
 
-<style>
-body {
-  margin: 0;
-  overflow: hidden;
-  background: black;
-}
+  const raw = [
+    h1[8],
+    h1[4],
+    h2[4],
+    h2[8]
+  ].map(p=>({
+    x: p.x * canvas.width,
+    y: p.y * canvas.height
+  }));
 
-video, canvas {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transform: scaleX(-1);
-}
+  const pts = smooth(raw);
+  smoothPts = pts;
 
-.hud {
-  position: absolute;
-  right: 20px;
-  top: 25%;
-  color: cyan;
-  border: 1px solid cyan;
-  padding: 12px;
-  box-shadow: 0 0 25px cyan;
-  font-size: 12px;
-  background: rgba(0,0,0,0.3);
-}
-</style>
-</head>
+  // ====== CLIP (ISI VIDEO DALAM KOTAK) ======
+  ctx.save();
 
-<body>
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  ctx.lineTo(pts[1].x, pts[1].y);
+  ctx.lineTo(pts[2].x, pts[2].y);
+  ctx.lineTo(pts[3].x, pts[3].y);
+  ctx.closePath();
+  ctx.clip();
 
-<video id="video" autoplay playsinline></video>
-<canvas id="canvas"></canvas>
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-<div class="hud">
-  CAMERA MODE / 02 <br>
-  SUBJECT DETECTION <br>
-  PINCH FRAME ACTIVE
-</div>
-
-<script type="module">
-import {
-  FilesetResolver,
-  HandLandmarker
-} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest";
-
-const video = document.getElementById("video");
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
-
-let smoothPts = null;
-
-// kamera
-async function cam() {
-  const stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: "user" }
-  });
-  video.srcObject = stream;
-  return new Promise(r => video.onloadedmetadata = r);
-}
-
-async function main() {
-  await cam();
-
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-
-  const vision = await FilesetResolver.forVisionTasks(
-    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm"
-  );
-
-  const hand = await HandLandmarker.createFromOptions(vision, {
-    baseOptions: {
-      modelAssetPath:
-      "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
-    },
-    runningMode: "VIDEO",
-    numHands: 2
-  });
-
-  function lerp(a,b,t){ return a + (b-a)*t }
-
-  function smooth(newPts){
-    if(!smoothPts){
-      smoothPts = newPts;
-      return newPts;
-    }
-    return newPts.map((p,i)=>({
-      x: lerp(smoothPts[i].x,p.x,0.3),
-      y: lerp(smoothPts[i].y,p.y,0.3)
-    }));
+  // scanline effect
+  for(let i=0;i<canvas.height;i+=3){
+    ctx.fillStyle="rgba(0,255,255,0.05)";
+    ctx.fillRect(0,i,canvas.width,1);
   }
 
-  function drawFrame(h1, h2){
+  ctx.restore();
 
-    const ptsRaw = [
-      h1[8], // kiri atas (index)
-      h1[4], // kiri bawah (thumb)
-      h2[4], // kanan bawah
-      h2[8]  // kanan atas
-    ].map(p=>({
-      x: p.x * canvas.width,
-      y: p.y * canvas.height
-    }));
 
-    const pts = smooth(ptsRaw);
-    smoothPts = pts;
+  // ====== OUTER DASH ======
+  ctx.save();
 
-    // ===== CLIP AREA =====
-    ctx.save();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "rgba(0,255,255,0.9)";
+  ctx.shadowColor = "cyan";
+  ctx.shadowBlur = 18;
+
+  ctx.setLineDash([6,6]);
+  ctx.lineDashOffset = -performance.now() * 0.02;
+
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  ctx.lineTo(pts[1].x, pts[1].y);
+  ctx.lineTo(pts[2].x, pts[2].y);
+  ctx.lineTo(pts[3].x, pts[3].y);
+  ctx.closePath();
+  ctx.stroke();
+
+  ctx.restore();
+
+
+  // ====== INNER LINE ======
+  ctx.save();
+
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(0,255,255,0.25)";
+  ctx.setLineDash([]);
+
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  ctx.lineTo(pts[1].x, pts[1].y);
+  ctx.lineTo(pts[2].x, pts[2].y);
+  ctx.lineTo(pts[3].x, pts[3].y);
+  ctx.closePath();
+  ctx.stroke();
+
+  ctx.restore();
+
+
+  // ====== RGB GLITCH EDGE ======
+  ctx.save();
+
+  ctx.globalCompositeOperation = "lighter";
+
+  // merah
+  ctx.strokeStyle = "rgba(255,0,80,0.4)";
+  ctx.translate(1, 0);
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  ctx.lineTo(pts[1].x, pts[1].y);
+  ctx.lineTo(pts[2].x, pts[2].y);
+  ctx.lineTo(pts[3].x, pts[3].y);
+  ctx.closePath();
+  ctx.stroke();
+
+  // biru
+  ctx.translate(-2, 0);
+  ctx.strokeStyle = "rgba(0,150,255,0.4)";
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  ctx.lineTo(pts[1].x, pts[1].y);
+  ctx.lineTo(pts[2].x, pts[2].y);
+  ctx.lineTo(pts[3].x, pts[3].y);
+  ctx.closePath();
+  ctx.stroke();
+
+  ctx.restore();
+
+
+  // ====== CORNER DOT ======
+  pts.forEach(p => {
+    ctx.fillStyle = "cyan";
     ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
-    ctx.lineTo(pts[1].x, pts[1].y);
-    ctx.lineTo(pts[2].x, pts[2].y);
-    ctx.lineTo(pts[3].x, pts[3].y);
-    ctx.closePath();
-    ctx.clip();
+    ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  });
 
-    // ===== ISI VIDEO (EFEK "LAYAR") =====
-    ctx.globalAlpha = 0.9;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // scanline
-    for(let i=0;i<canvas.height;i+=4){
-      ctx.fillStyle="rgba(0,255,255,0.04)";
-      ctx.fillRect(0,i,canvas.width,2);
-    }
-
-    ctx.restore();
-
-    // ===== FRAME GLOW =====
-    ctx.shadowColor="cyan";
-    ctx.shadowBlur=30;
-    ctx.strokeStyle="cyan";
-    ctx.lineWidth=3;
-
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
-    ctx.lineTo(pts[1].x, pts[1].y);
-    ctx.lineTo(pts[2].x, pts[2].y);
-    ctx.lineTo(pts[3].x, pts[3].y);
-    ctx.closePath();
-    ctx.stroke();
-
-    ctx.shadowBlur=0;
+  // ====== GLITCH LINE RANDOM ======
+  for (let i = 0; i < 5; i++) {
+    ctx.fillStyle = "rgba(0,255,255,0.08)";
+    ctx.fillRect(
+      Math.random() * canvas.width,
+      Math.random() * canvas.height,
+      Math.random() * 80,
+      2
+    );
   }
-
-  async function loop(){
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-
-    const res = hand.detectForVideo(video, performance.now());
-
-    if(res.landmarks && res.landmarks.length === 2){
-
-      let [a,b] = res.landmarks;
-
-      // kiri kanan stabil
-      if(a[0].x > b[0].x){
-        [a,b] = [b,a];
-      }
-
-      drawFrame(a,b);
-    }
-
-    requestAnimationFrame(loop);
-  }
-
-  loop();
 }
-
-main();
-</script>
-
-</body>
-</html>

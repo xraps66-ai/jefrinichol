@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Cyber Frame FINAL</title>
+<title>Cyber Frame ULTRA</title>
 
 <style>
 body {
@@ -22,11 +22,11 @@ video, canvas {
 .hud {
   position: absolute;
   right: 20px;
-  top: 30%;
+  top: 25%;
   color: cyan;
   border: 1px solid cyan;
-  padding: 10px;
-  box-shadow: 0 0 20px cyan;
+  padding: 12px;
+  box-shadow: 0 0 25px cyan;
   font-size: 12px;
   background: rgba(0,0,0,0.3);
 }
@@ -41,7 +41,7 @@ video, canvas {
 <div class="hud">
   CAMERA MODE / 02 <br>
   SUBJECT DETECTION <br>
-  HAND FRAME ACTIVE
+  PINCH FRAME ACTIVE
 </div>
 
 <script type="module">
@@ -54,6 +54,9 @@ const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
+let smoothPts = null;
+
+// kamera
 async function cam() {
   const stream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: "user" }
@@ -81,54 +84,61 @@ async function main() {
     numHands: 2
   });
 
-  const connections = [
-    [0,1],[1,2],[2,3],[3,4],
-    [0,5],[5,6],[6,7],[7,8],
-    [5,9],[9,10],[10,11],[11,12],
-    [9,13],[13,14],[14,15],[15,16],
-    [13,17],[17,18],[18,19],[19,20],
-    [0,17]
-  ];
+  function lerp(a,b,t){ return a + (b-a)*t }
 
-  function drawHand(landmarks) {
-    ctx.strokeStyle = "cyan";
-    ctx.lineWidth = 2;
-
-    connections.forEach(([a,b])=>{
-      const p1 = landmarks[a];
-      const p2 = landmarks[b];
-
-      ctx.beginPath();
-      ctx.moveTo(p1.x*canvas.width, p1.y*canvas.height);
-      ctx.lineTo(p2.x*canvas.width, p2.y*canvas.height);
-      ctx.stroke();
-    });
-
-    landmarks.forEach(p=>{
-      ctx.beginPath();
-      ctx.arc(p.x*canvas.width,p.y*canvas.height,3,0,Math.PI*2);
-      ctx.fillStyle="cyan";
-      ctx.fill();
-    });
+  function smooth(newPts){
+    if(!smoothPts){
+      smoothPts = newPts;
+      return newPts;
+    }
+    return newPts.map((p,i)=>({
+      x: lerp(smoothPts[i].x,p.x,0.3),
+      y: lerp(smoothPts[i].y,p.y,0.3)
+    }));
   }
 
-  function drawHologramBox(hand1, hand2) {
+  function drawFrame(h1, h2){
 
-    const p1 = hand1[8];
-    const p2 = hand1[5];
-    const p3 = hand2[5];
-    const p4 = hand2[8];
-
-    const pts = [p1,p2,p3,p4].map(p=>({
+    const ptsRaw = [
+      h1[8], // kiri atas (index)
+      h1[4], // kiri bawah (thumb)
+      h2[4], // kanan bawah
+      h2[8]  // kanan atas
+    ].map(p=>({
       x: p.x * canvas.width,
       y: p.y * canvas.height
     }));
 
-    // glow
-    ctx.shadowColor = "cyan";
-    ctx.shadowBlur = 25;
-    ctx.strokeStyle = "cyan";
-    ctx.lineWidth = 3;
+    const pts = smooth(ptsRaw);
+    smoothPts = pts;
+
+    // ===== CLIP AREA =====
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    ctx.lineTo(pts[1].x, pts[1].y);
+    ctx.lineTo(pts[2].x, pts[2].y);
+    ctx.lineTo(pts[3].x, pts[3].y);
+    ctx.closePath();
+    ctx.clip();
+
+    // ===== ISI VIDEO (EFEK "LAYAR") =====
+    ctx.globalAlpha = 0.9;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // scanline
+    for(let i=0;i<canvas.height;i+=4){
+      ctx.fillStyle="rgba(0,255,255,0.04)";
+      ctx.fillRect(0,i,canvas.width,2);
+    }
+
+    ctx.restore();
+
+    // ===== FRAME GLOW =====
+    ctx.shadowColor="cyan";
+    ctx.shadowBlur=30;
+    ctx.strokeStyle="cyan";
+    ctx.lineWidth=3;
 
     ctx.beginPath();
     ctx.moveTo(pts[0].x, pts[0].y);
@@ -138,34 +148,24 @@ async function main() {
     ctx.closePath();
     ctx.stroke();
 
-    // isi hologram
-    ctx.fillStyle = "rgba(0,255,255,0.15)";
-    ctx.fill();
-
-    // garis scan dalam box
-    for(let i=0;i<20;i++){
-      ctx.beginPath();
-      ctx.moveTo(pts[0].x, pts[0].y + i*5);
-      ctx.lineTo(pts[3].x, pts[3].y + i*5);
-      ctx.strokeStyle="rgba(0,255,255,0.05)";
-      ctx.stroke();
-    }
-
-    ctx.shadowBlur = 0;
+    ctx.shadowBlur=0;
   }
 
-  async function loop() {
+  async function loop(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
     const res = hand.detectForVideo(video, performance.now());
 
-    if (res.landmarks) {
+    if(res.landmarks && res.landmarks.length === 2){
 
-      res.landmarks.forEach(drawHand);
+      let [a,b] = res.landmarks;
 
-      if (res.landmarks.length === 2) {
-        drawHologramBox(res.landmarks[0], res.landmarks[1]);
+      // kiri kanan stabil
+      if(a[0].x > b[0].x){
+        [a,b] = [b,a];
       }
+
+      drawFrame(a,b);
     }
 
     requestAnimationFrame(loop);

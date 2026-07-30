@@ -1,10 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cyber Frame Final</title>
+
+<style>
+body {
+  margin:0;
+  overflow:hidden;
+  background:black;
+}
+
+video, canvas {
+  position:absolute;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  transform: scaleX(-1);
+}
+</style>
+</head>
+
+<body>
+
+<video id="video" autoplay playsinline></video>
+<canvas id="canvas"></canvas>
+
+<script type="module">
+import {
+  FilesetResolver,
+  HandLandmarker
+} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest";
+
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+let smoothPts = null;
+let glitchFrame = 0;
+let prevDetected = false;
+
+// ===== CAMERA =====
+async function cam(){
+  const stream = await navigator.mediaDevices.getUserMedia({video:true});
+  video.srcObject = stream;
+  return new Promise(r => video.onloadedmetadata = r);
+}
+
+// ===== SMOOTH =====
+function smooth(newPts){
+  if(!smoothPts){ smoothPts = newPts; return newPts; }
+  return newPts.map((p,i)=>({
+    x: smoothPts[i].x + (p.x - smoothPts[i].x)*0.3,
+    y: smoothPts[i].y + (p.y - smoothPts[i].y)*0.3
+  }));
+}
+
+// ===== DRAW FRAME =====
 function drawFrame(h1, h2){
 
   const raw = [
-    h1[8],
-    h1[4],
-    h2[4],
-    h2[8]
+    h1[8], h1[4],
+    h2[4], h2[8]
   ].map(p=>({
     x: p.x * canvas.width,
     y: p.y * canvas.height
@@ -13,9 +70,8 @@ function drawFrame(h1, h2){
   const pts = smooth(raw);
   smoothPts = pts;
 
-  // ====== CLIP (ISI VIDEO DALAM KOTAK) ======
+  // ===== CLIP VIDEO =====
   ctx.save();
-
   ctx.beginPath();
   ctx.moveTo(pts[0].x, pts[0].y);
   ctx.lineTo(pts[1].x, pts[1].y);
@@ -26,7 +82,6 @@ function drawFrame(h1, h2){
 
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-  // scanline effect
   for(let i=0;i<canvas.height;i+=3){
     ctx.fillStyle="rgba(0,255,255,0.05)";
     ctx.fillRect(0,i,canvas.width,1);
@@ -34,17 +89,15 @@ function drawFrame(h1, h2){
 
   ctx.restore();
 
-
-  // ====== OUTER DASH ======
+  // ===== DASH =====
   ctx.save();
-
   ctx.lineWidth = 2;
-  ctx.strokeStyle = "rgba(0,255,255,0.9)";
+  ctx.strokeStyle = "cyan";
   ctx.shadowColor = "cyan";
   ctx.shadowBlur = 18;
 
   ctx.setLineDash([6,6]);
-  ctx.lineDashOffset = -performance.now() * 0.02;
+  ctx.lineDashOffset = -performance.now()*0.02;
 
   ctx.beginPath();
   ctx.moveTo(pts[0].x, pts[0].y);
@@ -53,17 +106,12 @@ function drawFrame(h1, h2){
   ctx.lineTo(pts[3].x, pts[3].y);
   ctx.closePath();
   ctx.stroke();
-
   ctx.restore();
 
-
-  // ====== INNER LINE ======
+  // ===== INNER =====
   ctx.save();
-
   ctx.lineWidth = 1;
-  ctx.strokeStyle = "rgba(0,255,255,0.25)";
-  ctx.setLineDash([]);
-
+  ctx.strokeStyle = "rgba(0,255,255,0.3)";
   ctx.beginPath();
   ctx.moveTo(pts[0].x, pts[0].y);
   ctx.lineTo(pts[1].x, pts[1].y);
@@ -71,57 +119,116 @@ function drawFrame(h1, h2){
   ctx.lineTo(pts[3].x, pts[3].y);
   ctx.closePath();
   ctx.stroke();
-
   ctx.restore();
 
-
-  // ====== RGB GLITCH EDGE ======
+  // ===== RGB =====
   ctx.save();
+  ctx.globalCompositeOperation="lighter";
 
-  ctx.globalCompositeOperation = "lighter";
-
-  // merah
-  ctx.strokeStyle = "rgba(255,0,80,0.4)";
-  ctx.translate(1, 0);
+  ctx.strokeStyle="rgba(255,0,80,0.4)";
   ctx.beginPath();
-  ctx.moveTo(pts[0].x, pts[0].y);
-  ctx.lineTo(pts[1].x, pts[1].y);
-  ctx.lineTo(pts[2].x, pts[2].y);
-  ctx.lineTo(pts[3].x, pts[3].y);
+  ctx.moveTo(pts[0].x+1, pts[0].y);
+  ctx.lineTo(pts[1].x+1, pts[1].y);
+  ctx.lineTo(pts[2].x+1, pts[2].y);
+  ctx.lineTo(pts[3].x+1, pts[3].y);
   ctx.closePath();
   ctx.stroke();
 
-  // biru
-  ctx.translate(-2, 0);
-  ctx.strokeStyle = "rgba(0,150,255,0.4)";
+  ctx.strokeStyle="rgba(0,150,255,0.4)";
   ctx.beginPath();
-  ctx.moveTo(pts[0].x, pts[0].y);
-  ctx.lineTo(pts[1].x, pts[1].y);
-  ctx.lineTo(pts[2].x, pts[2].y);
-  ctx.lineTo(pts[3].x, pts[3].y);
+  ctx.moveTo(pts[0].x-1, pts[0].y);
+  ctx.lineTo(pts[1].x-1, pts[1].y);
+  ctx.lineTo(pts[2].x-1, pts[2].y);
+  ctx.lineTo(pts[3].x-1, pts[3].y);
   ctx.closePath();
   ctx.stroke();
 
   ctx.restore();
 
-
-  // ====== CORNER DOT ======
-  pts.forEach(p => {
-    ctx.fillStyle = "cyan";
+  // ===== DOT =====
+  pts.forEach(p=>{
+    ctx.fillStyle="cyan";
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+    ctx.arc(p.x,p.y,2.5,0,Math.PI*2);
     ctx.fill();
   });
 
-
-  // ====== GLITCH LINE RANDOM ======
-  for (let i = 0; i < 5; i++) {
-    ctx.fillStyle = "rgba(0,255,255,0.08)";
+  // ===== GLITCH LINE =====
+  for(let i=0;i<5;i++){
+    ctx.fillStyle="rgba(0,255,255,0.08)";
     ctx.fillRect(
-      Math.random() * canvas.width,
-      Math.random() * canvas.height,
-      Math.random() * 80,
+      Math.random()*canvas.width,
+      Math.random()*canvas.height,
+      Math.random()*80,
       2
     );
   }
 }
+
+// ===== GLITCH BURST =====
+function drawGlitch(){
+  for(let i=0;i<15;i++){
+    ctx.fillStyle=`rgba(${Math.random()*255},255,255,0.2)`;
+    ctx.fillRect(
+      Math.random()*canvas.width,
+      Math.random()*canvas.height,
+      Math.random()*120,
+      Math.random()*25
+    );
+  }
+}
+
+// ===== MAIN =====
+async function main(){
+  await cam();
+
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+
+  const vision = await FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm"
+  );
+
+  const hand = await HandLandmarker.createFromOptions(vision,{
+    baseOptions:{
+      modelAssetPath:
+      "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
+    },
+    runningMode:"VIDEO",
+    numHands:2
+  });
+
+  async function loop(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    const res = hand.detectForVideo(video, performance.now());
+
+    const detected = res.landmarks && res.landmarks.length === 2;
+
+    if(detected && !prevDetected){
+      glitchFrame = 10;
+    }
+    prevDetected = detected;
+
+    if(detected){
+      let [a,b] = res.landmarks;
+      if(a[0].x > b[0].x){ [a,b]=[b,a]; }
+      drawFrame(a,b);
+    }
+
+    if(glitchFrame > 0){
+      drawGlitch();
+      glitchFrame--;
+    }
+
+    requestAnimationFrame(loop);
+  }
+
+  loop();
+}
+
+main();
+</script>
+
+</body>
+</html>

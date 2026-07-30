@@ -2,44 +2,33 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Cyber Scan FULL</title>
+<title>Cyber Scan FIX</title>
 
 <style>
 body {
   margin: 0;
   overflow: hidden;
-  background: #0a0f1c;
-  color: #00eaff;
+  background: black;
 }
 
+/* VIDEO FULL + PAS */
 video, canvas {
   position: absolute;
-  top: 0;
-  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1); /* mirror */
 }
 
 .hud {
   position: absolute;
   right: 20px;
   top: 30%;
-  border: 1px solid #00eaff;
-  padding: 12px;
-  box-shadow: 0 0 20px #00eaff;
-  background: rgba(0,0,0,0.4);
+  color: cyan;
+  border: 1px solid cyan;
+  padding: 10px;
+  box-shadow: 0 0 15px cyan;
   font-size: 12px;
-}
-
-.scan {
-  position: absolute;
-  width: 100%;
-  height: 3px;
-  background: rgba(0,255,255,0.4);
-  animation: scan 2s linear infinite;
-}
-
-@keyframes scan {
-  0% { top: 0 }
-  100% { top: 100% }
 }
 </style>
 </head>
@@ -50,33 +39,30 @@ video, canvas {
 <canvas id="canvas"></canvas>
 
 <div class="hud">
-  CAMERA MODE / 02 <br>
-  SUBJECT DETECTION <br>
-  HAND TRACK ACTIVE
+  CYBER MODE ACTIVE<br>
+  HAND TRACKING ON
 </div>
-
-<div class="scan"></div>
 
 <script type="module">
 import {
   FilesetResolver,
-  FaceDetector,
-  HandLandmarker,
-  DrawingUtils
+  HandLandmarker
 } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest";
 
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-async function cam() {
-  const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+async function startCam() {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: "user" }
+  });
   video.srcObject = stream;
   return new Promise(r => video.onloadedmetadata = r);
 }
 
 async function main() {
-  await cam();
+  await startCam();
 
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
@@ -85,16 +71,6 @@ async function main() {
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm"
   );
 
-  // FACE
-  const face = await FaceDetector.createFromOptions(vision, {
-    baseOptions: {
-      modelAssetPath:
-      "https://storage.googleapis.com/mediapipe-models/face_detector/face_detector/float16/1/face_detector.task"
-    },
-    runningMode: "VIDEO"
-  });
-
-  // HAND
   const hand = await HandLandmarker.createFromOptions(vision, {
     baseOptions: {
       modelAssetPath:
@@ -104,51 +80,47 @@ async function main() {
     numHands: 2
   });
 
-  const draw = new DrawingUtils(ctx);
+  // 🔥 koneksi jari manual (fix bug)
+  const connections = [
+    [0,1],[1,2],[2,3],[3,4],
+    [0,5],[5,6],[6,7],[7,8],
+    [5,9],[9,10],[10,11],[11,12],
+    [9,13],[13,14],[14,15],[15,16],
+    [13,17],[17,18],[18,19],[19,20],
+    [0,17]
+  ];
 
-  function cyberBox(x,y,w,h){
-    ctx.save();
-    ctx.translate(x+w/2,y+h/2);
-    ctx.rotate(-0.2);
+  function drawHand(landmarks) {
+    ctx.strokeStyle = "cyan";
+    ctx.lineWidth = 2;
 
-    ctx.strokeStyle="#00eaff";
-    ctx.lineWidth=3;
-    ctx.shadowColor="#00eaff";
-    ctx.shadowBlur=15;
+    // garis
+    connections.forEach(([a,b])=>{
+      const p1 = landmarks[a];
+      const p2 = landmarks[b];
 
-    ctx.strokeRect(-w/2,-h/2,w,h);
-
-    ctx.restore();
-  }
-
-  async function loop(){
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-
-    const now = performance.now();
-
-    // FACE
-    const f = face.detectForVideo(video, now);
-    f.detections.forEach(d=>{
-      const b = d.boundingBox;
-      cyberBox(b.originX,b.originY,b.width,b.height);
+      ctx.beginPath();
+      ctx.moveTo(p1.x * canvas.width, p1.y * canvas.height);
+      ctx.lineTo(p2.x * canvas.width, p2.y * canvas.height);
+      ctx.stroke();
     });
 
-    // HAND (INI GARISNYA 🔥)
-    const h = hand.detectForVideo(video, now);
+    // titik
+    landmarks.forEach(p=>{
+      ctx.beginPath();
+      ctx.arc(p.x*canvas.width,p.y*canvas.height,3,0,Math.PI*2);
+      ctx.fillStyle="cyan";
+      ctx.fill();
+    });
+  }
 
-    if (h.landmarks) {
-      for (const landmarks of h.landmarks) {
-        draw.drawConnectors(
-          landmarks,
-          HandLandmarker.HAND_CONNECTIONS,
-          { color: "#00eaff", lineWidth: 2 }
-        );
+  async function loop() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
 
-        draw.drawLandmarks(landmarks, {
-          color: "#00eaff",
-          radius: 2
-        });
-      }
+    const res = hand.detectForVideo(video, performance.now());
+
+    if (res.landmarks) {
+      res.landmarks.forEach(drawHand);
     }
 
     requestAnimationFrame(loop);

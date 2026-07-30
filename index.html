@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Cyber Scan FIX</title>
+<title>Cyber Frame FINAL</title>
 
 <style>
 body {
@@ -11,13 +11,12 @@ body {
   background: black;
 }
 
-/* VIDEO FULL + PAS */
 video, canvas {
   position: absolute;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transform: scaleX(-1); /* mirror */
+  transform: scaleX(-1);
 }
 
 .hud {
@@ -27,8 +26,9 @@ video, canvas {
   color: cyan;
   border: 1px solid cyan;
   padding: 10px;
-  box-shadow: 0 0 15px cyan;
+  box-shadow: 0 0 20px cyan;
   font-size: 12px;
+  background: rgba(0,0,0,0.3);
 }
 </style>
 </head>
@@ -39,8 +39,9 @@ video, canvas {
 <canvas id="canvas"></canvas>
 
 <div class="hud">
-  CYBER MODE ACTIVE<br>
-  HAND TRACKING ON
+  CAMERA MODE / 02 <br>
+  SUBJECT DETECTION <br>
+  HAND FRAME ACTIVE
 </div>
 
 <script type="module">
@@ -53,7 +54,7 @@ const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-async function startCam() {
+async function cam() {
   const stream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: "user" }
   });
@@ -62,7 +63,7 @@ async function startCam() {
 }
 
 async function main() {
-  await startCam();
+  await cam();
 
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
@@ -80,7 +81,6 @@ async function main() {
     numHands: 2
   });
 
-  // 🔥 koneksi jari manual (fix bug)
   const connections = [
     [0,1],[1,2],[2,3],[3,4],
     [0,5],[5,6],[6,7],[7,8],
@@ -94,18 +94,16 @@ async function main() {
     ctx.strokeStyle = "cyan";
     ctx.lineWidth = 2;
 
-    // garis
     connections.forEach(([a,b])=>{
       const p1 = landmarks[a];
       const p2 = landmarks[b];
 
       ctx.beginPath();
-      ctx.moveTo(p1.x * canvas.width, p1.y * canvas.height);
-      ctx.lineTo(p2.x * canvas.width, p2.y * canvas.height);
+      ctx.moveTo(p1.x*canvas.width, p1.y*canvas.height);
+      ctx.lineTo(p2.x*canvas.width, p2.y*canvas.height);
       ctx.stroke();
     });
 
-    // titik
     landmarks.forEach(p=>{
       ctx.beginPath();
       ctx.arc(p.x*canvas.width,p.y*canvas.height,3,0,Math.PI*2);
@@ -114,13 +112,60 @@ async function main() {
     });
   }
 
+  function drawHologramBox(hand1, hand2) {
+
+    const p1 = hand1[8];
+    const p2 = hand1[5];
+    const p3 = hand2[5];
+    const p4 = hand2[8];
+
+    const pts = [p1,p2,p3,p4].map(p=>({
+      x: p.x * canvas.width,
+      y: p.y * canvas.height
+    }));
+
+    // glow
+    ctx.shadowColor = "cyan";
+    ctx.shadowBlur = 25;
+    ctx.strokeStyle = "cyan";
+    ctx.lineWidth = 3;
+
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    ctx.lineTo(pts[1].x, pts[1].y);
+    ctx.lineTo(pts[2].x, pts[2].y);
+    ctx.lineTo(pts[3].x, pts[3].y);
+    ctx.closePath();
+    ctx.stroke();
+
+    // isi hologram
+    ctx.fillStyle = "rgba(0,255,255,0.15)";
+    ctx.fill();
+
+    // garis scan dalam box
+    for(let i=0;i<20;i++){
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y + i*5);
+      ctx.lineTo(pts[3].x, pts[3].y + i*5);
+      ctx.strokeStyle="rgba(0,255,255,0.05)";
+      ctx.stroke();
+    }
+
+    ctx.shadowBlur = 0;
+  }
+
   async function loop() {
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
     const res = hand.detectForVideo(video, performance.now());
 
     if (res.landmarks) {
+
       res.landmarks.forEach(drawHand);
+
+      if (res.landmarks.length === 2) {
+        drawHologramBox(res.landmarks[0], res.landmarks[1]);
+      }
     }
 
     requestAnimationFrame(loop);

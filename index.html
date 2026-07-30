@@ -2,14 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Cyber Scan Camera</title>
+<title>Cyber Scan FULL</title>
 
 <style>
 body {
   margin: 0;
   overflow: hidden;
   background: #0a0f1c;
-  font-family: 'Segoe UI', sans-serif;
   color: #00eaff;
 }
 
@@ -19,23 +18,18 @@ video, canvas {
   left: 0;
 }
 
-.hud-box {
+.hud {
   position: absolute;
   right: 20px;
   top: 30%;
-  padding: 15px;
   border: 1px solid #00eaff;
+  padding: 12px;
   box-shadow: 0 0 20px #00eaff;
   background: rgba(0,0,0,0.4);
   font-size: 12px;
 }
 
-.hud-box b {
-  display: block;
-  margin-bottom: 5px;
-}
-
-.scan-line {
+.scan {
   position: absolute;
   width: 100%;
   height: 3px;
@@ -44,21 +38,8 @@ video, canvas {
 }
 
 @keyframes scan {
-  0% { top: 0; }
-  100% { top: 100%; }
-}
-
-/* efek glitch */
-.glitch {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    rgba(0,255,255,0.05) 50%,
-    transparent 50%
-  );
-  background-size: 100% 4px;
-  pointer-events: none;
+  0% { top: 0 }
+  100% { top: 100% }
 }
 </style>
 </head>
@@ -68,33 +49,34 @@ video, canvas {
 <video id="video" autoplay playsinline></video>
 <canvas id="canvas"></canvas>
 
-<div class="hud-box">
-  <b>CAMERA MODE / 02</b>
-  SUBJECT DETECTION<br>
-  HAND FRAME ACTIVE
+<div class="hud">
+  CAMERA MODE / 02 <br>
+  SUBJECT DETECTION <br>
+  HAND TRACK ACTIVE
 </div>
 
-<div class="scan-line"></div>
-<div class="glitch"></div>
+<div class="scan"></div>
 
 <script type="module">
 import {
+  FilesetResolver,
   FaceDetector,
-  FilesetResolver
+  HandLandmarker,
+  DrawingUtils
 } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest";
 
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-async function startCam() {
+async function cam() {
   const stream = await navigator.mediaDevices.getUserMedia({ video: true });
   video.srcObject = stream;
-  return new Promise(res => video.onloadedmetadata = res);
+  return new Promise(r => video.onloadedmetadata = r);
 }
 
-async function run() {
-  await startCam();
+async function main() {
+  await cam();
 
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
@@ -103,7 +85,8 @@ async function run() {
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm"
   );
 
-  const detector = await FaceDetector.createFromOptions(vision, {
+  // FACE
+  const face = await FaceDetector.createFromOptions(vision, {
     baseOptions: {
       modelAssetPath:
       "https://storage.googleapis.com/mediapipe-models/face_detector/face_detector/float16/1/face_detector.task"
@@ -111,44 +94,70 @@ async function run() {
     runningMode: "VIDEO"
   });
 
-  function drawCyberBox(x, y, w, h) {
-    ctx.save();
+  // HAND
+  const hand = await HandLandmarker.createFromOptions(vision, {
+    baseOptions: {
+      modelAssetPath:
+      "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
+    },
+    runningMode: "VIDEO",
+    numHands: 2
+  });
 
-    // ROTATE biar miring kayak TikTok
-    ctx.translate(x + w/2, y + h/2);
+  const draw = new DrawingUtils(ctx);
+
+  function cyberBox(x,y,w,h){
+    ctx.save();
+    ctx.translate(x+w/2,y+h/2);
     ctx.rotate(-0.2);
 
-    ctx.strokeStyle = "#00eaff";
-    ctx.lineWidth = 3;
-    ctx.shadowColor = "#00eaff";
-    ctx.shadowBlur = 15;
+    ctx.strokeStyle="#00eaff";
+    ctx.lineWidth=3;
+    ctx.shadowColor="#00eaff";
+    ctx.shadowBlur=15;
 
-    ctx.strokeRect(-w/2, -h/2, w, h);
-
-    ctx.fillStyle = "#00eaff";
-    ctx.font = "12px monospace";
-    ctx.fillText("CYBER FRAME ACTIVE", -w/2, -h/2 - 10);
+    ctx.strokeRect(-w/2,-h/2,w,h);
 
     ctx.restore();
   }
 
-  async function detect() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  async function loop(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    const res = detector.detectForVideo(video, performance.now());
+    const now = performance.now();
 
-    res.detections.forEach(d => {
+    // FACE
+    const f = face.detectForVideo(video, now);
+    f.detections.forEach(d=>{
       const b = d.boundingBox;
-      drawCyberBox(b.originX, b.originY, b.width, b.height);
+      cyberBox(b.originX,b.originY,b.width,b.height);
     });
 
-    requestAnimationFrame(detect);
+    // HAND (INI GARISNYA 🔥)
+    const h = hand.detectForVideo(video, now);
+
+    if (h.landmarks) {
+      for (const landmarks of h.landmarks) {
+        draw.drawConnectors(
+          landmarks,
+          HandLandmarker.HAND_CONNECTIONS,
+          { color: "#00eaff", lineWidth: 2 }
+        );
+
+        draw.drawLandmarks(landmarks, {
+          color: "#00eaff",
+          radius: 2
+        });
+      }
+    }
+
+    requestAnimationFrame(loop);
   }
 
-  detect();
+  loop();
 }
 
-run();
+main();
 </script>
 
 </body>

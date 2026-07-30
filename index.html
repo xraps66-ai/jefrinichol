@@ -40,14 +40,14 @@ let smoothPts = null;
 let glitchFrame = 0;
 let prevDetected = false;
 
-// ===== CAMERA =====
+// CAMERA
 async function cam(){
   const stream = await navigator.mediaDevices.getUserMedia({video:true});
   video.srcObject = stream;
   return new Promise(r => video.onloadedmetadata = r);
 }
 
-// ===== SMOOTH =====
+// SMOOTH
 function smooth(newPts){
   if(!smoothPts){ smoothPts = newPts; return newPts; }
   return newPts.map((p,i)=>({
@@ -56,7 +56,7 @@ function smooth(newPts){
   }));
 }
 
-// ===== DRAW FRAME =====
+// DRAW FRAME
 function drawFrame(h1, h2){
 
   const raw = [
@@ -70,7 +70,7 @@ function drawFrame(h1, h2){
   const pts = smooth(raw);
   smoothPts = pts;
 
-  // ===== CLIP VIDEO =====
+  // ===== CLIP =====
   ctx.save();
   ctx.beginPath();
   ctx.moveTo(pts[0].x, pts[0].y);
@@ -80,8 +80,16 @@ function drawFrame(h1, h2){
   ctx.closePath();
   ctx.clip();
 
+  // 🔥 SUPER BLUR (MUKA GAK KEBACA)
+  ctx.filter = "blur(30px) brightness(0.8) contrast(1.2)";
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  ctx.filter = "none";
 
+  // glow overlay
+  ctx.fillStyle = "rgba(0,255,255,0.08)";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // scanline
   for(let i=0;i<canvas.height;i+=3){
     ctx.fillStyle="rgba(0,255,255,0.05)";
     ctx.fillRect(0,i,canvas.width,1);
@@ -89,7 +97,7 @@ function drawFrame(h1, h2){
 
   ctx.restore();
 
-  // ===== DASH =====
+  // DASH
   ctx.save();
   ctx.lineWidth = 2;
   ctx.strokeStyle = "cyan";
@@ -108,7 +116,7 @@ function drawFrame(h1, h2){
   ctx.stroke();
   ctx.restore();
 
-  // ===== INNER =====
+  // INNER
   ctx.save();
   ctx.lineWidth = 1;
   ctx.strokeStyle = "rgba(0,255,255,0.3)";
@@ -121,7 +129,7 @@ function drawFrame(h1, h2){
   ctx.stroke();
   ctx.restore();
 
-  // ===== RGB =====
+  // RGB EDGE
   ctx.save();
   ctx.globalCompositeOperation="lighter";
 
@@ -145,7 +153,7 @@ function drawFrame(h1, h2){
 
   ctx.restore();
 
-  // ===== DOT =====
+  // DOT
   pts.forEach(p=>{
     ctx.fillStyle="cyan";
     ctx.beginPath();
@@ -153,7 +161,7 @@ function drawFrame(h1, h2){
     ctx.fill();
   });
 
-  // ===== GLITCH LINE =====
+  // GLITCH LINE
   for(let i=0;i<5;i++){
     ctx.fillStyle="rgba(0,255,255,0.08)";
     ctx.fillRect(
@@ -165,7 +173,7 @@ function drawFrame(h1, h2){
   }
 }
 
-// ===== GLITCH BURST =====
+// GLITCH BURST
 function drawGlitch(){
   for(let i=0;i<15;i++){
     ctx.fillStyle=`rgba(${Math.random()*255},255,255,0.2)`;
@@ -178,7 +186,7 @@ function drawGlitch(){
   }
 }
 
-// ===== MAIN =====
+// MAIN
 async function main(){
   await cam();
 

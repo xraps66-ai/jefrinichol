@@ -2,12 +2,13 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>RapsX - 13</title>
+<title>Project Raps13 - Gesture</title>
 <style>
   body {
     margin: 0;
     overflow: hidden;
     background: black;
+    font-family: 'Courier New', monospace;
   }
   video, canvas {
     position: absolute;
@@ -16,12 +17,25 @@
     object-fit: cover;
     transform: scaleX(-1);
   }
+  #gesture-label {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    color: #0ff;
+    font-size: 22px;
+    font-weight: bold;
+    text-shadow: 0 0 12px #0ff;
+    z-index: 10;
+    pointer-events: none;
+    letter-spacing: 1px;
+  }
 </style>
 </head>
 <body>
 
-<video id="video" autoplay playsinline></video>
+<video id="video" autoplay playsinline muted></video>
 <canvas id="canvas"></canvas>
+<div id="gesture-label">Menunggu tangan...</div>
 
 <script type="module">
 import {
@@ -29,34 +43,82 @@ import {
   HandLandmarker
 } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest";
 
-const video = document.getElementById("video");
+const video  = document.getElementById("video");
 const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");9n,
+const ctx    = canvas.getContext("2d", { alpha: false });
+const label  = document.getElementById("gesture-label");
 
-let smoothPts = null;
-let glitchFrame = 0;
-let prevDetected = false;
+let smoothPts     = null;
+let glitchFrame   = 0;
+let prevDetected  = false;
+let frameCount    = 0;
+let lastLandmarks = null;
 
-// KAMERA
+// ===================== KAMERA =====================
 async function cam() {
-  const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+    audio: false
+  });
   video.srcObject = stream;
-  return new Promise(r => video.onloadedmetadata = r);
+  await new Promise(r => video.onloadedmetadata = r);
+  canvas.width  = video.videoWidth;
+  canvas.height = video.videoHeight;
 }
 
-// SMOOTH
+// ===================== SUPER SMOOTH =====================
 function smooth(newPts) {
   if (!smoothPts) {
-    smoothPts = newPts;
-    return newPts;
+    smoothPts = newPts.map(p => ({ x: p.x, y: p.y }));
+    return smoothPts;
   }
+  const alpha = 0.13;
   return newPts.map((p, i) => ({
-    x: smoothPts[i].x + (p.x - smoothPts[i].x) * 0.3,
-    y: smoothPts[i].y + (p.y - smoothPts[i].y) * 0.3
+    x: smoothPts[i].x + (p.x - smoothPts[i].x) * alpha,
+    y: smoothPts[i].y + (p.y - smoothPts[i].y) * alpha
   }));
 }
 
-// DRAW FRAME
+// ===================== DETEKSI GESTUR =====================
+function isFingerUp(landmarks, tipIdx, pipIdx) {
+  return landmarks[tipIdx].y < landmarks[pipIdx].y;
+}
+
+function detectGesture(landmarks) {
+  const thumbUp   = landmarks[4].x < landmarks[3].x; // untuk tangan kiri (setelah mirror)
+  const indexUp   = isFingerUp(landmarks, 8, 6);
+  const middleUp  = isFingerUp(landmarks, 12, 10);
+  const ringUp    = isFingerUp(landmarks, 16, 14);
+  const pinkyUp   = isFingerUp(landmarks, 20, 18);
+
+  const fingers = [thumbUp, indexUp, middleUp, ringUp, pinkyUp];
+  const upCount = fingers.filter(Boolean).length;
+
+  // Fist
+  if (upCount === 0) return "✊  FIST";
+
+  // Open Palm
+  if (upCount === 5) return "✋  OPEN PALM";
+
+  // Peace / Victory
+  if (indexUp && middleUp && !ringUp && !pinkyUp) return "✌️  PEACE";
+
+  // Thumbs Up
+  if (thumbUp && !indexUp && !middleUp && !ringUp && !pinkyUp) return "👍  THUMBS UP";
+
+  // Pointing
+  if (indexUp && !middleUp && !ringUp && !pinkyUp) return "☝️  POINTING";
+
+  // OK Sign (thumb + index saling dekat + jari lain turun)
+  const thumbTip = landmarks[4];
+  const indexTip = landmarks[8];
+  const dist = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
+  if (dist < 0.06 && middleUp && ringUp && pinkyUp) return "👌  OK";
+
+  return "🖐️  UNKNOWN";
+}
+
+// ===================== DRAW FRAME =====================
 function drawFrame(h1, h2) {
   const raw = [
     h1[8], h1[4],
@@ -69,7 +131,7 @@ function drawFrame(h1, h2) {
   const pts = smooth(raw);
   smoothPts = pts;
 
-  // ===== CLIP =====
+  // CLIP + BLUR
   ctx.save();
   ctx.beginPath();
   ctx.moveTo(pts[0].x, pts[0].y);
@@ -79,31 +141,27 @@ function drawFrame(h1, h2) {
   ctx.closePath();
   ctx.clip();
 
-  // SUPER BLUR (MUKA GAK KEBACA)
-  ctx.filter = "blur(30px) brightness(0.8) contrast(1.2)";
+  ctx.filter = "blur(28px) brightness(0.78) contrast(1.25)";
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
   ctx.filter = "none";
 
-  // glow overlay
-  ctx.fillStyle = "rgba(0,255,255,0.08)";
+  ctx.fillStyle = "rgba(0,255,255,0.07)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // scanline
-  for (let i = 0; i < canvas.height; i += 3) {
-    ctx.fillStyle = "rgba(0,255,255,0.05)";
-    ctx.fillRect(0, i, canvas.width, 1);
+  for (let y = 0; y < canvas.height; y += 4) {
+    ctx.fillStyle = "rgba(0,255,255,0.045)";
+    ctx.fillRect(0, y, canvas.width, 1);
   }
-
   ctx.restore();
 
-  // DASH
+  // Border
   ctx.save();
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = "cyan";
-  ctx.shadowColor = "cyan";
-  ctx.shadowBlur = 18;
-  ctx.setLineDash([6, 6]);
-  ctx.lineDashOffset = -performance.now() * 0.02;
+  ctx.lineWidth = 2.2;
+  ctx.strokeStyle = "#0ff";
+  ctx.shadowColor = "#0ff";
+  ctx.shadowBlur = 16;
+  ctx.setLineDash([7, 6]);
+  ctx.lineDashOffset = -performance.now() * 0.022;
 
   ctx.beginPath();
   ctx.moveTo(pts[0].x, pts[0].y);
@@ -114,10 +172,10 @@ function drawFrame(h1, h2) {
   ctx.stroke();
   ctx.restore();
 
-  // INNER
+  // Inner
   ctx.save();
   ctx.lineWidth = 1;
-  ctx.strokeStyle = "rgba(0,255,255,0.3)";
+  ctx.strokeStyle = "rgba(0,255,255,0.28)";
   ctx.beginPath();
   ctx.moveTo(pts[0].x, pts[0].y);
   ctx.lineTo(pts[1].x, pts[1].y);
@@ -127,105 +185,97 @@ function drawFrame(h1, h2) {
   ctx.stroke();
   ctx.restore();
 
-  // RGB EDGE
+  // RGB fringe
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
+  ctx.lineWidth = 1.4;
 
-  ctx.strokeStyle = "rgba(255,0,80,0.4)";
+  ctx.strokeStyle = "rgba(255,30,80,0.4)";
   ctx.beginPath();
-  ctx.moveTo(pts[0].x + 1, pts[0].y);
-  ctx.lineTo(pts[1].x + 1, pts[1].y);
-  ctx.lineTo(pts[2].x + 1, pts[2].y);
-  ctx.lineTo(pts[3].x + 1, pts[3].y);
+  ctx.moveTo(pts[0].x + 1.3, pts[0].y);
+  ctx.lineTo(pts[1].x + 1.3, pts[1].y);
+  ctx.lineTo(pts[2].x + 1.3, pts[2].y);
+  ctx.lineTo(pts[3].x + 1.3, pts[3].y);
   ctx.closePath();
   ctx.stroke();
 
-  ctx.strokeStyle = "rgba(0,150,255,0.4)";
+  ctx.strokeStyle = "rgba(0,140,255,0.4)";
   ctx.beginPath();
-  ctx.moveTo(pts[0].x - 1, pts[0].y);
-  ctx.lineTo(pts[1].x - 1, pts[1].y);
-  ctx.lineTo(pts[2].x - 1, pts[2].y);
-  ctx.lineTo(pts[3].x - 1, pts[3].y);
+  ctx.moveTo(pts[0].x - 1.3, pts[0].y);
+  ctx.lineTo(pts[1].x - 1.3, pts[1].y);
+  ctx.lineTo(pts[2].x - 1.3, pts[2].y);
+  ctx.lineTo(pts[3].x - 1.3, pts[3].y);
   ctx.closePath();
   ctx.stroke();
-
   ctx.restore();
 
-  // DOT
+  // Dots
   pts.forEach(p => {
-    ctx.fillStyle = "cyan";
+    ctx.fillStyle = "#0ff";
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, 2.8, 0, Math.PI * 2);
     ctx.fill();
   });
-
-  // GLITCH LINE
-  for (let i = 0; i < 5; i++) {
-    ctx.fillStyle = "rgba(0,255,255,0.08)";
-    ctx.fillRect(
-      Math.random() * canvas.width,
-      Math.random() * canvas.height,
-      Math.random() * 80,
-      2
-    );
-  }
 }
 
-// GLITCH BURST
-function drawGlitch() {
-  for (let i = 0; i < 15; i++) {
-    ctx.fillStyle = `rgba(${Math.random() * 255},255,255,0.2)`;
-    ctx.fillRect(
-      Math.random() * canvas.width,
-      Math.random() * canvas.height,
-      Math.random() * 120,
-      Math.random() * 25
-    );
-  }
-}
-
-// MAIN
+// ===================== MAIN =====================
 async function main() {
   await cam();
-
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
 
   const vision = await FilesetResolver.forVisionTasks(
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm"
   );
 
-  const hand = await HandLandmarker.createFromOptions(vision, {
+  const handLandmarker = await HandLandmarker.createFromOptions(vision, {
     baseOptions: {
-      modelAssetPath:
-        "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
+      modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+      delegate: "GPU"
     },
     runningMode: "VIDEO",
-    numHands: 2
+    numHands: 2,
+    minHandDetectionConfidence: 0.55,
+    minTrackingConfidence: 0.5
   });
 
-  async function loop() {
+  function loop() {
+    frameCount++;
+
+    // Deteksi setiap 2 frame
+    if (frameCount % 2 === 0) {
+      const result = handLandmarker.detectForVideo(video, performance.now());
+      lastLandmarks = (result.landmarks && result.landmarks.length >= 1) ? result.landmarks : null;
+    }
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const res = hand.detectForVideo(video, performance.now());
+    if (lastLandmarks && lastLandmarks.length >= 1) {
+      // Ambil tangan pertama untuk deteksi gestur
+      const gesture = detectGesture(lastLandmarks[0]);
+      label.textContent = gesture;
 
-    const detected = res.landmarks && res.landmarks.length === 2;
+      // Kalau ada 2 tangan → tampilkan frame
+      if (lastLandmarks.length === 2) {
+        let [a, b] = lastLandmarks;
+        if (a[0].x > b[0].x) [a, b] = [b, a];
+        drawFrame(a, b);
 
-    if (detected && !prevDetected) {
-      glitchFrame = 10;
-    }
-    prevDetected = detected;
-
-    if (detected) {
-      let [a, b] = res.landmarks;
-      if (a[0].x > b[0].x) {
-        [a, b] = [b, a];
+        if (!prevDetected) glitchFrame = 8;
+        prevDetected = true;
+      } else {
+        prevDetected = false;
+        smoothPts = null;
       }
-      drawFrame(a, b);
+    } else {
+      label.textContent = "Menunggu tangan...";
+      prevDetected = false;
+      smoothPts = null;
     }
 
     if (glitchFrame > 0) {
-      drawGlitch();
+      for (let i = 0; i < 10; i++) {
+        ctx.fillStyle = `rgba(${Math.random()*180},255,255,0.15)`;
+        ctx.fillRect(Math.random()*canvas.width, Math.random()*canvas.height, Math.random()*100, Math.random()*20);
+      }
       glitchFrame--;
     }
 
@@ -235,7 +285,7 @@ async function main() {
   loop();
 }
 
-main();
+main().catch(console.error);
 </script>
 
 </body>

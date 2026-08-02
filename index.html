@@ -2,235 +2,710 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Manual Tracking - Invert Mode</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Manual Tracking Pro v3.0 - Full Feature</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background: #0a0a0f;
-      overflow: hidden;
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      color: #e0f7ff;
+    :root {
+      --accent: #00ffff;
+      --accent2: #ff00aa;
+      --panel-bg: rgba(8, 10, 18, 0.94);
+      --border: rgba(0, 255, 255, 0.28);
+      --text: #e0f7ff;
+      --muted: #7a9bb0;
     }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #050508;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      user-select: none;
+    }
+
     video, canvas {
       position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
       object-fit: cover;
       transform: scaleX(-1);
     }
+
+    /* ========== LOADING ========== */
+    #loading {
+      position: fixed;
+      inset: 0;
+      background: #030307;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 99999;
+      transition: opacity 0.7s ease, visibility 0.7s;
+    }
+    #loading.hide {
+      opacity: 0;
+      visibility: hidden;
+    }
+    .loader {
+      width: 52px;
+      height: 52px;
+      border: 3px solid rgba(0,255,255,0.15);
+      border-top-color: #0ff;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading p {
+      margin-top: 18px;
+      font-size: 14px;
+      color: #0ff;
+      letter-spacing: 0.5px;
+    }
+
+    /* ========== HUD ========== */
     #status {
       position: absolute;
-      top: 18px; left: 18px;
-      background: rgba(0,0,0,0.55);
-      padding: 8px 14px;
-      border-radius: 8px;
-      font-size: 15px;
+      top: 16px;
+      left: 16px;
+      background: rgba(0,0,0,0.6);
+      padding: 9px 16px;
+      border-radius: 10px;
+      font-size: 14px;
       font-weight: 600;
       color: #0ff;
-      text-shadow: 0 0 8px #0ff;
-      z-index: 20;
-      backdrop-filter: blur(6px);
+      text-shadow: 0 0 10px #0ff;
+      z-index: 50;
+      backdrop-filter: blur(8px);
       border: 1px solid rgba(0,255,255,0.25);
+      max-width: 280px;
     }
     #fps {
       position: absolute;
-      top: 18px; right: 18px;
+      top: 16px;
+      right: 16px;
       background: rgba(0,0,0,0.55);
       padding: 6px 12px;
       border-radius: 8px;
+      font-size: 12px;
+      color: #9ab;
+      z-index: 50;
+    }
+    #info {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      background: rgba(0,0,0,0.5);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      color: #8ab;
+      z-index: 50;
+      line-height: 1.5;
+    }
+
+    /* ========== TOGGLE BUTTON ========== */
+    #togglePanel {
+      position: absolute;
+      top: 60px;
+      right: 16px;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.65);
+      border: 1px solid rgba(0,255,255,0.4);
+      color: #0ff;
+      font-size: 20px;
+      cursor: pointer;
+      z-index: 60;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.25s;
+    }
+    #togglePanel:hover {
+      background: rgba(0,255,255,0.15);
+      transform: scale(1.08);
+    }
+
+    /* ========== CONTROL PANEL ========== */
+    #panel {
+      position: absolute;
+      top: 60px;
+      right: 16px;
+      width: 320px;
+      max-height: calc(100vh - 90px);
+      overflow-y: auto;
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      z-index: 55;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 12px 48px rgba(0,0,0,0.55);
+      transition: transform 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.35s;
+    }
+    #panel.hidden {
+      transform: translateX(110%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #panel h2 {
+      font-size: 15px;
+      color: #0ff;
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      letter-spacing: 0.3px;
+    }
+    #panel h2 span {
+      font-size: 11px;
+      color: #567;
+      font-weight: 400;
+    }
+
+    .section {
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .section:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #6a8;
+      margin-bottom: 10px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      color: #9bc;
+      margin-bottom: 5px;
+    }
+
+    select, input[type="range"], input[type="color"] {
+      width: 100%;
+      margin-bottom: 10px;
+    }
+
+    select {
+      background: #0d1118;
+      color: #fff;
+      border: 1px solid #2a3344;
+      padding: 8px 10px;
+      border-radius: 7px;
       font-size: 13px;
-      color: #aaa;
-      z-index: 20;
+      outline: none;
+    }
+    select:focus {
+      border-color: #0ff;
+    }
+
+    input[type="range"] {
+      accent-color: #0ff;
+      height: 4px;
+    }
+
+    .value {
+      font-size: 11px;
+      color: #5af;
+      text-align: right;
+      margin-top: -8px;
+      margin-bottom: 8px;
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    button.ctrl {
+      background: rgba(0,255,255,0.08);
+      border: 1px solid rgba(0,255,255,0.3);
+      color: #0ff;
+      padding: 7px 11px;
+      border-radius: 7px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    button.ctrl:hover {
+      background: rgba(0,255,255,0.18);
+    }
+    button.ctrl.active {
+      background: #0ff;
+      color: #000;
+      font-weight: 600;
+      border-color: #0ff;
+    }
+
+    .hint {
+      font-size: 11px;
+      color: #678;
+      line-height: 1.55;
+      margin-top: 6px;
+    }
+
+    /* Scrollbar */
+    #panel::-webkit-scrollbar { width: 5px; }
+    #panel::-webkit-scrollbar-thumb {
+      background: rgba(0,255,255,0.25);
+      border-radius: 4px;
+    }
+
+    /* ========== TOAST ========== */
+    #toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: rgba(0,0,0,0.85);
+      color: #0ff;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 13px;
+      z-index: 100;
+      opacity: 0;
+      transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+      pointer-events: none;
+      border: 1px solid rgba(0,255,255,0.3);
+    }
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
     }
   </style>
 </head>
 <body>
 
-<video id="video" autoplay playsinline muted></video>
-<canvas id="canvas"></canvas>
-<div id="status">Menunggu tangan...</div>
-<div id="fps">FPS: --</div>
+  <!-- LOADING -->
+  <div id="loading">
+    <div class="loader"></div>
+    <p id="loadingText">Memuat MediaPipe Hand Landmarker...</p>
+  </div>
+
+  <video id="video" autoplay playsinline muted></video>
+  <canvas id="canvas"></canvas>
+
+  <div id="status">Menunggu tangan...</div>
+  <div id="fps">FPS: --</div>
+  <div id="info">
+    Jempol + Telunjuk kedua tangan<br/>
+    Tekan H untuk panel
+  </div>
+
+  <button id="togglePanel" title="Toggle Panel (H)">☰</button>
+
+  <!-- CONTROL PANEL -->
+  <div id="panel" class="hidden">
+    <h2>
+      Control Panel
+      <span>v3.0 Invert</span>
+    </h2>
+
+    <!-- Mode -->
+    <div class="section">
+      <div class="section-title">Mode Visual</div>
+      <label>Efek Bentuk</label>
+      <select id="effectMode">
+        <option value="invert">Invert Warna (Recommended)</option>
+        <option value="invertHue">Invert + Hue Rotate</option>
+        <option value="neon">Neon Fill</option>
+        <option value="rainbow">Rainbow Thermal</option>
+        <option value="fire">Fire</option>
+        <option value="ice">Ice</option>
+      </select>
+    </div>
+
+    <!-- Appearance -->
+    <div class="section">
+      <div class="section-title">Tampilan</div>
+
+      <label>Opacity Bentuk</label>
+      <input type="range" id="opacity" min="0.15" max="1" step="0.01" value="0.85" />
+      <div class="value" id="opacityVal">0.85</div>
+
+      <label>Ketebalan Border</label>
+      <input type="range" id="thickness" min="1" max="10" step="0.5" value="3.5" />
+      <div class="value" id="thickVal">3.5</div>
+
+      <label>Glow Intensity</label>
+      <input type="range" id="glow" min="0" max="40" step="1" value="16" />
+      <div class="value" id="glowVal">16</div>
+
+      <label>Smoothing</label>
+      <input type="range" id="smooth" min="0.08" max="0.55" step="0.01" value="0.30" />
+      <div class="value" id="smoothVal">0.30</div>
+    </div>
+
+    <!-- Effects -->
+    <div class="section">
+      <div class="section-title">Efek Tambahan</div>
+      <div class="btn-row">
+        <button class="ctrl active" id="btnCross">Garis Silang</button>
+        <button class="ctrl active" id="btnDots">Titik Ujung</button>
+        <button class="ctrl" id="btnScan">Scanline</button>
+        <button class="ctrl" id="btnGlitch">Glitch</button>
+        <button class="ctrl" id="btnDebug">Debug</button>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="section">
+      <div class="section-title">Aksi</div>
+      <div class="btn-row">
+        <button class="ctrl" id="btnScreenshot">Screenshot</button>
+        <button class="ctrl" id="btnReset">Reset Setting</button>
+        <button class="ctrl" id="btnFullscreen">Fullscreen</button>
+      </div>
+    </div>
+
+    <!-- Shortcuts -->
+    <div class="section">
+      <div class="section-title">Keyboard Shortcut</div>
+      <div class="hint">
+        H → Toggle Panel<br/>
+        S → Screenshot<br/>
+        F → Fullscreen<br/>
+        D → Debug Mode<br/>
+        G → Toggle Glitch<br/>
+        C → Toggle Cross Line<br/>
+        1-6 → Ganti Mode Efek
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
 
 <script type="module">
+/* =========================================================
+   MANUAL TRACKING PRO v3.0
+   Dual Hand + Invert + Full Feature Set
+   ========================================================= */
+
 import {
   FilesetResolver,
   HandLandmarker
 } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
 
-const video = document.getElementById("video");
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
-const statusEl = document.getElementById("status");
-const fpsEl = document.getElementById("fps");
+// =========================================================
+// DOM
+// =========================================================
+const video        = document.getElementById("video");
+const canvas       = document.getElementById("canvas");
+const ctx          = canvas.getContext("2d", { alpha: false });
+const statusEl     = document.getElementById("status");
+const fpsEl        = document.getElementById("fps");
+const infoEl       = document.getElementById("info");
+const loadingEl    = document.getElementById("loading");
+const loadingText  = document.getElementById("loadingText");
+const panel        = document.getElementById("panel");
+const toggleBtn    = document.getElementById("togglePanel");
+const toastEl      = document.getElementById("toast");
 
+const effectModeEl = document.getElementById("effectMode");
+const opacityEl    = document.getElementById("opacity");
+const thicknessEl  = document.getElementById("thickness");
+const glowEl       = document.getElementById("glow");
+const smoothEl     = document.getElementById("smooth");
+
+const opacityVal   = document.getElementById("opacityVal");
+const thickVal     = document.getElementById("thickVal");
+const glowVal      = document.getElementById("glowVal");
+const smoothVal    = document.getElementById("smoothVal");
+
+const btnCross     = document.getElementById("btnCross");
+const btnDots      = document.getElementById("btnDots");
+const btnScan      = document.getElementById("btnScan");
+const btnGlitch    = document.getElementById("btnGlitch");
+const btnDebug     = document.getElementById("btnDebug");
+const btnScreenshot= document.getElementById("btnScreenshot");
+const btnReset     = document.getElementById("btnReset");
+const btnFullscreen= document.getElementById("btnFullscreen");
+
+// =========================================================
+// STATE
+// =========================================================
 let handLandmarker = null;
-let lastLandmarks = null;
-let smoothPoints = {};
-let glitchTimer = 0;
-let prevHandCount = 0;
-let frameCount = 0;
-let lastFpsTime = performance.now();
+let lastLandmarks  = null;
+let smoothPoints   = {};
+let glitchTimer    = 0;
+let prevHandCount  = 0;
+let frameCount     = 0;
+let lastFpsTime    = performance.now();
+let currentFps     = 0;
+let isFullscreen   = false;
 
+// Default settings
+let settings = {
+  effectMode: "invert",
+  opacity: 0.85,
+  thickness: 3.5,
+  glow: 16,
+  smooth: 0.30,
+  enableCross: true,
+  enableDots: true,
+  enableScan: false,
+  enableGlitch: false,
+  debug: false
+};
+
+// =========================================================
+// UTILS
+// =========================================================
+function showToast(msg, duration = 2200) {
+  toastEl.textContent = msg;
+  toastEl.classList.add("show");
+  setTimeout(() => toastEl.classList.remove("show"), duration);
+}
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem("mtp_settings_v3");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      settings = { ...settings, ...parsed };
+    }
+  } catch (e) {}
+  applySettingsToUI();
+}
+
+function saveSettings() {
+  localStorage.setItem("mtp_settings_v3", JSON.stringify(settings));
+}
+
+function applySettingsToUI() {
+  effectModeEl.value = settings.effectMode;
+  opacityEl.value = settings.opacity;
+  thicknessEl.value = settings.thickness;
+  glowEl.value = settings.glow;
+  smoothEl.value = settings.smooth;
+
+  opacityVal.textContent = settings.opacity.toFixed(2);
+  thickVal.textContent = settings.thickness;
+  glowVal.textContent = settings.glow;
+  smoothVal.textContent = settings.smooth.toFixed(2);
+
+  btnCross.classList.toggle("active", settings.enableCross);
+  btnDots.classList.toggle("active", settings.enableDots);
+  btnScan.classList.toggle("active", settings.enableScan);
+  btnGlitch.classList.toggle("active", settings.enableGlitch);
+  btnDebug.classList.toggle("active", settings.debug);
+}
+
+// =========================================================
+// EVENT LISTENERS
+// =========================================================
+effectModeEl.addEventListener("change", e => {
+  settings.effectMode = e.target.value;
+  saveSettings();
+  showToast("Mode: " + settings.effectMode);
+});
+
+opacityEl.addEventListener("input", e => {
+  settings.opacity = parseFloat(e.target.value);
+  opacityVal.textContent = settings.opacity.toFixed(2);
+  saveSettings();
+});
+
+thicknessEl.addEventListener("input", e => {
+  settings.thickness = parseFloat(e.target.value);
+  thickVal.textContent = settings.thickness;
+  saveSettings();
+});
+
+glowEl.addEventListener("input", e => {
+  settings.glow = parseInt(e.target.value);
+  glowVal.textContent = settings.glow;
+  saveSettings();
+});
+
+smoothEl.addEventListener("input", e => {
+  settings.smooth = parseFloat(e.target.value);
+  smoothVal.textContent = settings.smooth.toFixed(2);
+  saveSettings();
+});
+
+btnCross.addEventListener("click", () => {
+  settings.enableCross = !settings.enableCross;
+  btnCross.classList.toggle("active", settings.enableCross);
+  saveSettings();
+});
+
+btnDots.addEventListener("click", () => {
+  settings.enableDots = !settings.enableDots;
+  btnDots.classList.toggle("active", settings.enableDots);
+  saveSettings();
+});
+
+btnScan.addEventListener("click", () => {
+  settings.enableScan = !settings.enableScan;
+  btnScan.classList.toggle("active", settings.enableScan);
+  saveSettings();
+});
+
+btnGlitch.addEventListener("click", () => {
+  settings.enableGlitch = !settings.enableGlitch;
+  btnGlitch.classList.toggle("active", settings.enableGlitch);
+  saveSettings();
+});
+
+btnDebug.addEventListener("click", () => {
+  settings.debug = !settings.debug;
+  btnDebug.classList.toggle("active", settings.debug);
+  saveSettings();
+});
+
+btnScreenshot.addEventListener("click", takeScreenshot);
+btnReset.addEventListener("click", () => {
+  localStorage.removeItem("mtp_settings_v3");
+  showToast("Settings direset");
+  setTimeout(() => location.reload(), 600);
+});
+
+btnFullscreen.addEventListener("click", toggleFullscreen);
+toggleBtn.addEventListener("click", () => {
+  panel.classList.toggle("hidden");
+});
+
+// Keyboard
+window.addEventListener("keydown", e => {
+  const key = e.key.toLowerCase();
+  if (key === "h") panel.classList.toggle("hidden");
+  if (key === "s") takeScreenshot();
+  if (key === "f") toggleFullscreen();
+  if (key === "d") {
+    settings.debug = !settings.debug;
+    btnDebug.classList.toggle("active", settings.debug);
+    saveSettings();
+  }
+  if (key === "g") {
+    settings.enableGlitch = !settings.enableGlitch;
+    btnGlitch.classList.toggle("active", settings.enableGlitch);
+    saveSettings();
+  }
+  if (key === "c") {
+    settings.enableCross = !settings.enableCross;
+    btnCross.classList.toggle("active", settings.enableCross);
+    saveSettings();
+  }
+  // Mode shortcuts 1-6
+  if (key === "1") { effectModeEl.value = "invert"; effectModeEl.dispatchEvent(new Event("change")); }
+  if (key === "2") { effectModeEl.value = "invertHue"; effectModeEl.dispatchEvent(new Event("change")); }
+  if (key === "3") { effectModeEl.value = "neon"; effectModeEl.dispatchEvent(new Event("change")); }
+  if (key === "4") { effectModeEl.value = "rainbow"; effectModeEl.dispatchEvent(new Event("change")); }
+  if (key === "5") { effectModeEl.value = "fire"; effectModeEl.dispatchEvent(new Event("change")); }
+  if (key === "6") { effectModeEl.value = "ice"; effectModeEl.dispatchEvent(new Event("change")); }
+});
+
+// =========================================================
+// CAMERA
+// =========================================================
 async function setupCamera() {
+  loadingText.textContent = "Mengakses kamera...";
   const stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+    video: {
+      facingMode: "user",
+      width: { ideal: 1280 },
+      height: { ideal: 720 }
+    },
     audio: false
   });
   video.srcObject = stream;
-  await new Promise(r => {
+  await new Promise(resolve => {
     video.onloadedmetadata = () => {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      r();
+      resolve();
     };
   });
 }
 
-function getSmoothed(id, x, y, alpha = 0.32) {
-  if (!smoothPoints[id]) smoothPoints[id] = { x, y };
-  else {
+// =========================================================
+// SMOOTHING
+// =========================================================
+function getSmoothed(id, x, y) {
+  const alpha = settings.smooth;
+  if (!smoothPoints[id]) {
+    smoothPoints[id] = { x, y };
+  } else {
     smoothPoints[id].x += (x - smoothPoints[id].x) * alpha;
     smoothPoints[id].y += (y - smoothPoints[id].y) * alpha;
   }
   return smoothPoints[id];
 }
 
+// =========================================================
+// GRADIENT HELPERS
+// =========================================================
+function createGradient(x1, y1, x2, y2, mode) {
+  const g = ctx.createLinearGradient(x1, y1, x2, y2);
+  if (mode === "rainbow") {
+    g.addColorStop(0.00, "#ffcc00");
+    g.addColorStop(0.25, "#ff4400");
+    g.addColorStop(0.50, "#00ffcc");
+    g.addColorStop(0.75, "#ff00aa");
+    g.addColorStop(1.00, "#9900ff");
+  } else if (mode === "fire") {
+    g.addColorStop(0, "#1a0000");
+    g.addColorStop(0.35, "#ff2200");
+    g.addColorStop(0.7, "#ff9900");
+    g.addColorStop(1, "#ffffaa");
+  } else if (mode === "ice") {
+    g.addColorStop(0, "#001122");
+    g.addColorStop(0.5, "#00aaff");
+    g.addColorStop(1, "#e0f7ff");
+  } else if (mode === "neon") {
+    g.addColorStop(0, "#002222");
+    g.addColorStop(0.5, "#00ffff");
+    g.addColorStop(1, "#aaffff");
+  }
+  return g;
+}
+
+// =========================================================
+// DRAW SHAPE
+// =========================================================
 function drawDualHandShape(landmarksList) {
   if (landmarksList.length < 2) return;
 
   let handA = landmarksList[0];
   let handB = landmarksList[1];
 
-  // Urutkan kiri - kanan
+  // Pastikan kiri-kanan
   if (handA[0].x > handB[0].x) {
     [handA, handB] = [handB, handA];
   }
 
   const points = [
-    getSmoothed("a4", handA[4].x * canvas.width, handA[4].y * canvas.height), // jempol kiri
-    getSmoothed("a8", handA[8].x * canvas.width, handA[8].y * canvas.height), // telunjuk kiri
-    getSmoothed("b8", handB[8].x * canvas.width, handB[8].y * canvas.height), // telunjuk kanan
-    getSmoothed("b4", handB[4].x * canvas.width, handB[4].y * canvas.height)  // jempol kanan
+    getSmoothed("a4", handA[4].x * canvas.width, handA[4].y * canvas.height),
+    getSmoothed("a8", handA[8].x * canvas.width, handA[8].y * canvas.height),
+    getSmoothed("b8", handB[8].x * canvas.width, handB[8].y * canvas.height),
+    getSmoothed("b4", handB[4].x * canvas.width, handB[4].y * canvas.height)
   ];
 
-  // ===== INVERT AREA =====
+  const mode = settings.effectMode;
+
+  // ----- FILL -----
   ctx.save();
   ctx.beginPath();
-  ctx.moveTo(points[0].x, points[0].y);
-  ctx.lineTo(points[1].x, points[1].y);
-  ctx.lineTo(points[2].x, points[2].y);
-  ctx.lineTo(points[3].x, points[3].y);
-  ctx.closePath();
-  ctx.clip();
-
-  // Gambar kamera dengan filter invert
-  ctx.filter = "invert(1) hue-rotate(180deg)";
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  ctx.filter = "none";
-
-  ctx.restore();
-
-  // ===== BORDER NEON =====
-  ctx.save();
-  ctx.lineWidth = 3.5;
-  ctx.strokeStyle = "#ffffff";
-  ctx.shadowColor = "#00ffff";
-  ctx.shadowBlur = 16;
-  ctx.beginPath();
-  ctx.moveTo(points[0].x, points[0].y);
-  ctx.lineTo(points[1].x, points[1].y);
-  ctx.lineTo(points[2].x, points[2].y);
-  ctx.lineTo(points[3].x, points[3].y);
-  ctx.closePath();
-  ctx.stroke();
-
-  // Garis silang
-  ctx.lineWidth = 1.5;
-  ctx.strokeStyle = "rgba(255,255,255,0.4)";
-  ctx.shadowBlur = 0;
-  ctx.beginPath();
-  ctx.moveTo(points[0].x, points[0].y);
-  ctx.lineTo(points[2].x, points[2].y);
-  ctx.moveTo(points[1].x, points[1].y);
-  ctx.lineTo(points[3].x, points[3].y);
-  ctx.stroke();
-  ctx.restore();
-
-  // Titik di ujung
-  points.forEach(p => {
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, 5.5, 0, Math.PI * 2);
-    ctx.fillStyle = "#fff";
-    ctx.shadowColor = "#00ffff";
-    ctx.shadowBlur = 10;
-    ctx.fill();
-  });
-}
-
-function updateFps() {
-  frameCount++;
-  const now = performance.now();
-  if (now - lastFpsTime >= 1000) {
-    fpsEl.textContent = `FPS: ${frameCount}`;
-    frameCount = 0;
-    lastFpsTime = now;
-  }
-}
-
-async function main() {
-  await setupCamera();
-
-  const vision = await FilesetResolver.forVisionTasks(
-    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
-  );
-
-  handLandmarker = await HandLandmarker.createFromOptions(vision, {
-    baseOptions: {
-      modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-      delegate: "GPU"
-    },
-    runningMode: "VIDEO",
-    numHands: 2,
-    minHandDetectionConfidence: 0.6,
-    minTrackingConfidence: 0.55
-  });
-
-  function loop() {
-    if (video.readyState >= 2) {
-      const result = handLandmarker.detectForVideo(video, performance.now());
-      lastLandmarks = result.landmarks?.length > 0 ? result.landmarks : null;
-    }
-
-    // Latar kamera normal
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    const count = lastLandmarks ? lastLandmarks.length : 0;
-
-    if (count >= 2) {
-      statusEl.textContent = "2 Tangan - Invert Aktif";
-      drawDualHandShape(lastLandmarks);
-      if (count > prevHandCount) glitchTimer = 8;
-    } else if (count === 1) {
-      statusEl.textContent = "1 Tangan - Butuh 2 tangan";
-    } else {
-      statusEl.textContent = "Menunggu tangan...";
-      smoothPoints = {};
-    }
-
-    prevHandCount = count;
-    updateFps();
-    requestAnimationFrame(loop);
-  }
-
-  loop();
-}
-
-main().catch(err => {
-  console.error(err);
-  statusEl.textContent = "Error: " + err.message;
-});
-</script>
-</body>
-</html>
+  ctx.

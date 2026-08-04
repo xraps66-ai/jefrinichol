@@ -17,7 +17,6 @@
       top: 0; left: 0;
       width: 100%; height: 100%;
       object-fit: cover;
-      /* transform: scaleX(-1);  ← sudah dihapus */
     }
     #status {
       position: absolute;
@@ -214,11 +213,13 @@ function onResults(results) {
 
 async function start() {
   try {
+    // Resolusi 0.5 (lebih ringan)
     const stream = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: "user",
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
+        width: { ideal: 640 },   // setengah dari 1280
+        height: { ideal: 360 },  // setengah dari 720
+        frameRate: { ideal: 30 }
       },
       audio: false
     });
@@ -234,7 +235,7 @@ async function start() {
 
     hands.setOptions({
       maxNumHands: 2,
-      modelComplexity: 1,
+      modelComplexity: 0,          // lebih ringan
       minDetectionConfidence: 0.65,
       minTrackingConfidence: 0.5
     });

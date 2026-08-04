@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Manual Tracking Lite - Fast Load</title>
+  <title>Project Jepri Nikol</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      background: #050508;
+      background: #0a0612;
       overflow: hidden;
-      font-family: system-ui, -apple-system, sans-serif;
-      color: #e0f7ff;
+      font-family: system-ui, sans-serif;
+      color: #f0e6ff;
     }
     video, canvas {
       position: absolute;
@@ -19,136 +19,80 @@
       object-fit: cover;
       transform: scaleX(-1);
     }
-    #loading {
-      position: fixed;
-      inset: 0;
-      background: #030307;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-      transition: opacity 0.5s;
-    }
-    #loading.hide { opacity: 0; pointer-events: none; }
-    .loader {
-      width: 42px; height: 42px;
-      border: 3px solid rgba(0,255,255,0.15);
-      border-top-color: #0ff;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
     #status {
       position: absolute;
       top: 14px; left: 14px;
-      background: rgba(0,0,0,0.6);
+      background: rgba(20, 8, 30, 0.75);
       padding: 8px 14px;
       border-radius: 8px;
       font-size: 14px;
       font-weight: 600;
-      color: #0ff;
+      color: #e0aaff;
       z-index: 20;
-      border: 1px solid rgba(0,255,255,0.25);
+      border: 1px solid rgba(180, 80, 255, 0.4);
+      text-shadow: 0 0 8px rgba(180, 80, 255, 0.6);
     }
     #fps {
       position: absolute;
       top: 14px; right: 14px;
-      background: rgba(0,0,0,0.5);
+      background: rgba(20, 8, 30, 0.65);
       padding: 5px 10px;
       border-radius: 6px;
       font-size: 12px;
-      color: #9ab;
+      color: #c9a0e8;
       z-index: 20;
-    }
-    #toggle {
-      position: absolute;
-      top: 55px; right: 14px;
-      width: 40px; height: 40px;
-      border-radius: 50%;
-      background: rgba(0,0,0,0.6);
-      border: 1px solid rgba(0,255,255,0.35);
-      color: #0ff;
-      font-size: 18px;
-      cursor: pointer;
-      z-index: 30;
     }
     #panel {
       position: absolute;
-      top: 55px; right: 14px;
-      width: 260px;
-      background: rgba(8,10,16,0.95);
-      border: 1px solid rgba(0,255,255,0.25);
-      border-radius: 12px;
-      padding: 14px;
-      z-index: 25;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(18, 6, 28, 0.85);
+      padding: 8px 12px;
+      border-radius: 10px;
+      display: flex;
+      gap: 8px;
+      z-index: 30;
+      border: 1px solid rgba(180, 80, 255, 0.35);
       backdrop-filter: blur(10px);
-      transition: 0.3s;
     }
-    #panel.hidden { transform: translateX(120%); opacity: 0; pointer-events: none; }
-    #panel h3 { font-size: 13px; color: #0ff; margin-bottom: 12px; }
-    label { font-size: 12px; color: #8ab; display: block; margin: 8px 0 4px; }
-    select, input[type=range] { width: 100%; margin-bottom: 6px; }
-    select {
-      background: #111; color: #fff;
-      border: 1px solid #333; padding: 6px; border-radius: 5px;
-    }
-    .btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
     button {
-      background: rgba(0,255,255,0.1);
-      border: 1px solid rgba(0,255,255,0.3);
-      color: #0ff; padding: 6px 10px;
-      border-radius: 5px; font-size: 12px; cursor: pointer;
+      background: rgba(140, 50, 220, 0.15);
+      border: 1px solid rgba(180, 80, 255, 0.45);
+      color: #e0aaff;
+      padding: 5px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: 0.2s;
+      min-width: 110px;
+      height: 28px;
+      line-height: 1;
     }
-    button.active { background: #0ff; color: #000; font-weight: 600; }
-    .hint { font-size: 11px; color: #678; margin-top: 10px; line-height: 1.4; }
+    button:hover {
+      background: rgba(160, 70, 240, 0.3);
+    }
+    button.active {
+      background: linear-gradient(90deg, #a855f7, #c026d3);
+      color: #fff;
+      font-weight: 600;
+      border-color: #d946ef;
+      box-shadow: 0 0 12px rgba(180, 80, 255, 0.5);
+    }
   </style>
 </head>
 <body>
 
-<div id="loading">
-  <div class="loader"></div>
-  <p style="margin-top:14px;color:#0ff;font-size:13px;" id="loadText">Memuat...</p>
-</div>
-
 <video id="video" autoplay playsinline muted></video>
 <canvas id="canvas"></canvas>
 
-<div id="status">Menunggu tangan...</div>
+<div id="status">Project Jepri Nikol</div>
 <div id="fps">FPS: --</div>
-<button id="toggle">☰</button>
 
-<div id="panel" class="hidden">
-  <h3>Control Panel</h3>
-
-  <label>Mode Efek</label>
-  <select id="mode">
-    <option value="invert">Invert Warna</option>
-    <option value="invertHue">Invert + Hue</option>
-    <option value="neon">Neon</option>
-  </select>
-
-  <label>Opacity <span id="opVal">0.85</span></label>
-  <input type="range" id="opacity" min="0.3" max="1" step="0.05" value="0.85">
-
-  <label>Smoothing <span id="smVal">0.28</span></label>
-  <input type="range" id="smooth" min="0.1" max="0.5" step="0.02" value="0.28">
-
-  <div class="btns">
-    <button id="btnCross" class="active">Garis</button>
-    <button id="btnDots" class="active">Titik</button>
-    <button id="btnDebug">Debug</button>
-  </div>
-
-  <div class="btns" style="margin-top:8px;">
-    <button id="btnShot">Screenshot</button>
-    <button id="btnFull">Fullscreen</button>
-  </div>
-
-  <div class="hint">
-    H = Panel | S = Screenshot<br>
-    Pakai 2 tangan (jempol + telunjuk)
-  </div>
+<div id="panel">
+  <button id="btn1">jepri nikol 1</button>
+  <button id="btn2" class="active">jepri nikol 2</button>
+  <button id="btn3">jepri nikol 3</button>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -162,69 +106,40 @@ const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const statusEl = document.getElementById("status");
 const fpsEl = document.getElementById("fps");
-const loading = document.getElementById("loading");
-const loadText = document.getElementById("loadText");
-const panel = document.getElementById("panel");
-const toggle = document.getElementById("toggle");
 
+const btn1 = document.getElementById("btn1");
+const btn2 = document.getElementById("btn2");
+const btn3 = document.getElementById("btn3");
+
+let currentMode = "blur";
 let smoothPoints = {};
-let lastResults = null;
-let prevCount = 0;
 let frameCount = 0;
 let lastTime = performance.now();
+const smoothFactor = 0.18;
+const PASSWORD = "1";
 
-// Settings
-let mode = "invert";
-let opacity = 0.85;
-let smooth = 0.28;
-let showCross = true;
-let showDots = true;
-let debug = false;
+function changeMode(mode, button) {
+  const input = prompt("Masukkan password untuk ganti mode:");
+  if (input === PASSWORD) {
+    currentMode = mode;
+    btn1.classList.remove("active");
+    btn2.classList.remove("active");
+    btn3.classList.remove("active");
+    button.classList.add("active");
+  } else {
+    alert("Password salah!");
+  }
+}
 
-// UI Events
-document.getElementById("mode").onchange = e => mode = e.target.value;
-document.getElementById("opacity").oninput = e => {
-  opacity = parseFloat(e.target.value);
-  document.getElementById("opVal").textContent = opacity;
-};
-document.getElementById("smooth").oninput = e => {
-  smooth = parseFloat(e.target.value);
-  document.getElementById("smVal").textContent = smooth;
-};
-document.getElementById("btnCross").onclick = function() {
-  showCross = !showCross;
-  this.classList.toggle("active", showCross);
-};
-document.getElementById("btnDots").onclick = function() {
-  showDots = !showDots;
-  this.classList.toggle("active", showDots);
-};
-document.getElementById("btnDebug").onclick = function() {
-  debug = !debug;
-  this.classList.toggle("active", debug);
-};
-document.getElementById("btnShot").onclick = () => {
-  const a = document.createElement("a");
-  a.download = `hand-${Date.now()}.png`;
-  a.href = canvas.toDataURL();
-  a.click();
-};
-document.getElementById("btnFull").onclick = () => {
-  if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-  else document.exitFullscreen();
-};
-toggle.onclick = () => panel.classList.toggle("hidden");
-
-window.addEventListener("keydown", e => {
-  if (e.key === "h" || e.key === "H") panel.classList.toggle("hidden");
-  if (e.key === "s" || e.key === "S") document.getElementById("btnShot").click();
-});
+btn1.onclick = () => changeMode("neon", btn1);
+btn2.onclick = () => changeMode("blur", btn2);
+btn3.onclick = () => changeMode("invert", btn3);
 
 function getSmoothed(id, x, y) {
-  if (!smoothPoints[id]) smoothPoints[id] = {x, y};
+  if (!smoothPoints[id]) smoothPoints[id] = { x, y };
   else {
-    smoothPoints[id].x += (x - smoothPoints[id].x) * smooth;
-    smoothPoints[id].y += (y - smoothPoints[id].y) * smooth;
+    smoothPoints[id].x += (x - smoothPoints[id].x) * smoothFactor;
+    smoothPoints[id].y += (y - smoothPoints[id].y) * smoothFactor;
   }
   return smoothPoints[id];
 }
@@ -236,14 +151,16 @@ function drawShape(hands) {
   let b = hands[1];
   if (a[0].x > b[0].x) [a, b] = [b, a];
 
+  const w = canvas.width;
+  const h = canvas.height;
+
   const pts = [
-    getSmoothed("a4", a[4].x * canvas.width, a[4].y * canvas.height),
-    getSmoothed("a8", a[8].x * canvas.width, a[8].y * canvas.height),
-    getSmoothed("b8", b[8].x * canvas.width, b[8].y * canvas.height),
-    getSmoothed("b4", b[4].x * canvas.width, b[4].y * canvas.height)
+    getSmoothed("a4", a[4].x * w, a[4].y * h),
+    getSmoothed("a8", a[8].x * w, a[8].y * h),
+    getSmoothed("b8", b[8].x * w, b[8].y * h),
+    getSmoothed("b4", b[4].x * w, b[4].y * h)
   ];
 
-  // Clip + effect
   ctx.save();
   ctx.beginPath();
   ctx.moveTo(pts[0].x, pts[0].y);
@@ -253,96 +170,39 @@ function drawShape(hands) {
   ctx.closePath();
   ctx.clip();
 
-  if (mode === "invert") {
+  if (currentMode === "neon") {
+    ctx.filter = "invert(1) hue-rotate(90deg) saturate(2.8) contrast(1.35) brightness(1.15)";
+    ctx.drawImage(video, 0, 0, w, h);
+  } else if (currentMode === "blur") {
+    ctx.filter = "blur(18px) brightness(0.9)";
+    ctx.drawImage(video, 0, 0, w, h);
+  } else if (currentMode === "invert") {
     ctx.filter = "invert(1)";
-    ctx.globalAlpha = opacity;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  } else if (mode === "invertHue") {
-    ctx.filter = "invert(1) hue-rotate(180deg)";
-    ctx.globalAlpha = opacity;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  } else {
-    ctx.globalAlpha = opacity;
-    ctx.fillStyle = "#00ffff";
-    ctx.fill();
+    ctx.drawImage(video, 0, 0, w, h);
   }
+
   ctx.filter = "none";
-  ctx.globalAlpha = 1;
   ctx.restore();
-
-  // Border
-  ctx.lineWidth = 3.2;
-  ctx.strokeStyle = "#fff";
-  ctx.shadowColor = "#0ff";
-  ctx.shadowBlur = 14;
-  ctx.beginPath();
-  ctx.moveTo(pts[0].x, pts[0].y);
-  ctx.lineTo(pts[1].x, pts[1].y);
-  ctx.lineTo(pts[2].x, pts[2].y);
-  ctx.lineTo(pts[3].x, pts[3].y);
-  ctx.closePath();
-  ctx.stroke();
-  ctx.shadowBlur = 0;
-
-  // Cross
-  if (showCross) {
-    ctx.lineWidth = 1.3;
-    ctx.strokeStyle = "rgba(255,255,255,0.4)";
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
-    ctx.lineTo(pts[2].x, pts[2].y);
-    ctx.moveTo(pts[1].x, pts[1].y);
-    ctx.lineTo(pts[3].x, pts[3].y);
-    ctx.stroke();
-  }
-
-  // Dots
-  if (showDots) {
-    pts.forEach(p => {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
-      ctx.fillStyle = "#fff";
-      ctx.fill();
-    });
-  }
 }
 
 function onResults(results) {
-  lastResults = results;
-
-  ctx.save();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
 
   const hands = results.multiHandLandmarks || [];
-  const count = hands.length;
 
-  if (count >= 2) {
-    statusEl.textContent = "2 Tangan • Aktif";
+  if (hands.length >= 2) {
+    const modeName = currentMode === "blur" ? "jepri nikol 2" : 
+                     currentMode === "neon" ? "jepri nikol 1" : "jepri nikol 3";
+    statusEl.textContent = `Project Jepri Nikol • ${modeName}`;
     drawShape(hands);
-  } else if (count === 1) {
-    statusEl.textContent = "1 Tangan • Butuh 2";
+  } else if (hands.length === 1) {
+    statusEl.textContent = "Project Jepri Nikol • 1 Tangan";
   } else {
-    statusEl.textContent = "Menunggu tangan...";
+    statusEl.textContent = "Project Jepri Nikol";
     smoothPoints = {};
   }
 
-  if (debug && hands.length) {
-    for (const hand of hands) {
-      for (let i = 0; i < hand.length; i++) {
-        const x = hand[i].x * canvas.width;
-        const y = hand[i].y * canvas.height;
-        ctx.beginPath();
-        ctx.arc(x, y, 2.5, 0, Math.PI*2);
-        ctx.fillStyle = (i===4 || i===8) ? "#ff0" : "#0f0";
-        ctx.fill();
-      }
-    }
-  }
-
-  ctx.restore();
-
-  // FPS
   frameCount++;
   const now = performance.now();
   if (now - lastTime > 1000) {
@@ -354,10 +214,12 @@ function onResults(results) {
 
 async function start() {
   try {
-    loadText.textContent = "Menyiapkan kamera...";
-
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "user", width: 1280, height: 720 },
+      video: {
+        facingMode: "user",
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      },
       audio: false
     });
     video.srcObject = stream;
@@ -366,17 +228,15 @@ async function start() {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
-    loadText.textContent = "Memuat Hands model...";
-
     const hands = new Hands({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
     });
 
     hands.setOptions({
       maxNumHands: 2,
-      modelComplexity: 0,        // 0 = lebih ringan & cepat
+      modelComplexity: 1,
       minDetectionConfidence: 0.65,
-      minTrackingConfidence: 0.55
+      minTrackingConfidence: 0.5
     });
 
     hands.onResults(onResults);
@@ -385,17 +245,14 @@ async function start() {
       onFrame: async () => {
         await hands.send({ image: video });
       },
-      width: 1280,
-      height: 720
+      width: canvas.width,
+      height: canvas.height
     });
 
     await camera.start();
 
-    loading.classList.add("hide");
-    setTimeout(() => loading.style.display = "none", 500);
-
   } catch (err) {
-    loadText.textContent = "Error: " + err.message;
+    statusEl.textContent = "Error: " + err.message;
     console.error(err);
   }
 }
